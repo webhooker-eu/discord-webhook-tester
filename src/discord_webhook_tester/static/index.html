@@ -1,0 +1,923 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Discord Webhook Tester by Webhooker</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' fill='none'%3E%3Crect width='32' height='32' rx='10' fill='%235865f2'/%3E%3Cpath d='M5 16H9.4L12.7 9l6.6 14 3.3-7H27' stroke='%23fff' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preload" href="/static/fonts/figtree.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+  @font-face { font-family: "Unbounded"; src: url("/static/fonts/unbounded.woff2") format("woff2"); font-weight: 200 900; font-display: swap; }
+  @font-face { font-family: "Figtree"; src: url("/static/fonts/figtree.woff2") format("woff2"); font-weight: 300 900; font-display: swap; }
+
+  :root {
+    --blurple: #5865f2;
+    --blurple-deep: #4752c4;
+    --blurple-wash: #eef0ff;
+    --chat: #ffffff;
+    --fog: #f2f3f5;
+    --rail: #e3e5e8;
+    --line: #d7d9de;
+    --ink: #060607;
+    --text: #313338;
+    --text-muted: #5c5e66;
+    --online: #23a55a;
+    --online-text: #1a7f45;
+    --danger: #da373c;
+    --danger-wash: #fdeeee;
+    --sticker: #fee75c;
+    --font-display: "Unbounded", "Arial Black", system-ui, sans-serif;
+    --font-body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-code: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--rail); color: var(--text); font: 15px/1.45 var(--font-body); }
+  button, input, textarea { font: inherit; color: inherit; }
+  a { color: var(--blurple-deep); }
+
+  button {
+    border: 0;
+    background: var(--rail);
+    border-radius: 8px;
+    padding: 7px 14px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 0.12s;
+  }
+  button:hover:not(:disabled) { background: var(--line); }
+  button:disabled { opacity: 0.5; cursor: default; }
+  button.small { font-size: 13px; padding: 4px 10px; }
+  button.quiet-danger { background: transparent; color: var(--danger); }
+  button.quiet-danger:hover:not(:disabled) { background: var(--danger-wash); }
+  :is(button, input, textarea, summary, a):focus-visible { outline: 3px solid var(--blurple); outline-offset: 2px; }
+
+  .app { height: 100%; display: grid; grid-template-columns: 72px minmax(360px, 480px) minmax(0, 1fr); }
+
+  /* Server rail: the Webhooker "servers" */
+  .rail { background: var(--rail); display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 0; }
+  .rail-item { position: relative; width: 48px; height: 48px; display: grid; place-items: center; border-radius: 50%; background: var(--chat); color: var(--text); text-decoration: none; transition: border-radius 0.15s, background-color 0.15s, color 0.15s; }
+  .rail-item svg { width: 26px; height: 26px; }
+  .rail-item:hover, .rail-item:focus-visible, .rail-item.home { border-radius: 16px; background: var(--blurple); color: #fff; }
+  .rail-item.more { color: var(--online); }
+  .rail-item.more:hover, .rail-item.more:focus-visible { background: var(--online); color: #fff; }
+  .rail-item::before { content: ""; position: absolute; left: -12px; width: 4px; height: 0; border-radius: 0 4px 4px 0; background: var(--ink); transition: height 0.15s; }
+  .rail-item:hover::before, .rail-item:focus-visible::before { height: 20px; }
+  .rail-item.home::before { height: 40px; }
+  .rail-item::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 62px;
+    z-index: 10;
+    padding: 7px 12px;
+    border-radius: 8px;
+    background: var(--ink);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transform: scale(0.94);
+    transform-origin: left center;
+    transition: opacity 0.1s, transform 0.1s;
+  }
+  .rail-item:hover::after, .rail-item:focus-visible::after { opacity: 1; transform: none; }
+  .rail-divider { width: 32px; height: 2px; border-radius: 1px; background: var(--line); }
+  .rail-spacer { flex: 1; }
+
+  /* Builder: the message settings */
+  .builder { background: var(--fog); overflow-y: auto; padding: 28px 20px 20px; border-radius: 12px 0 0 0; }
+  .builder-head h1 { margin: 0 0 8px; font: 800 25px/1.12 var(--font-display); letter-spacing: -0.02em; color: var(--ink); text-wrap: balance; }
+  .builder-head p { margin: 0 0 24px; color: var(--text-muted); max-width: 40ch; }
+  .builder section { margin-bottom: 26px; }
+  .builder h2 { display: flex; align-items: baseline; justify-content: space-between; margin: 0 0 10px; font-size: 16px; font-weight: 700; color: var(--ink); }
+
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-grid .wide, .form-grid > .checkbox { grid-column: 1 / -1; }
+  .control { display: flex; flex-direction: column; gap: 5px; font-size: 13px; font-weight: 600; color: var(--text-muted); min-width: 0; }
+  .control-head { display: flex; justify-content: space-between; gap: 8px; }
+  .counter { font-weight: 500; font-variant-numeric: tabular-nums; color: var(--text-muted); }
+  .counter.over { color: var(--danger); font-weight: 700; }
+  input[type="text"], input[type="url"], input[type="password"], textarea {
+    width: 100%;
+    background: var(--chat);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 9px 11px;
+    font-size: 15px;
+    font-weight: 400;
+    color: var(--text);
+  }
+  input::placeholder, textarea::placeholder { color: #8a8d96; }
+  textarea { min-height: 78px; resize: vertical; }
+  .url-row { display: flex; gap: 6px; }
+  .url-row input { min-width: 0; }
+  .url-row button { background: var(--chat); border: 1px solid var(--line); }
+  .checkbox { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; color: var(--text); }
+  .checkbox input { width: 17px; height: 17px; accent-color: var(--blurple); }
+  .note { color: var(--text-muted); font-size: 13px; margin: 7px 0; }
+  .note.good { color: var(--online-text); font-weight: 600; }
+  .note.bad { color: var(--danger); font-weight: 600; }
+
+  .embed-card { background: var(--chat); border-radius: 10px; margin-bottom: 10px; border-left: 4px solid var(--embed-color, var(--line)); }
+  .embed-card > summary { padding: 11px 12px; cursor: pointer; display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--ink); border-radius: 10px; }
+  .embed-card > summary .summary-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .embed-body { padding: 0 12px 14px; }
+  .embed-body input[type="text"], .embed-body input[type="url"], .embed-body textarea { background: var(--fog); border-color: transparent; }
+  .embed-body h3 { font-size: 14px; color: var(--ink); margin: 18px 0 8px; font-weight: 700; }
+  .color-row { display: flex; align-items: center; gap: 10px; min-height: 40px; }
+  .color-row input[type="color"] { width: 40px; height: 40px; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; }
+  .color-row input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+  .color-row input[type="color"]::-webkit-color-swatch { border: 3px solid var(--chat); border-radius: 50%; box-shadow: 0 0 0 1px var(--line); }
+  .color-row input[type="color"]::-moz-color-swatch { border: 3px solid var(--chat); border-radius: 50%; box-shadow: 0 0 0 1px var(--line); }
+  .field-row { display: grid; grid-template-columns: 1fr 1.4fr auto auto; gap: 8px; align-items: end; margin-bottom: 8px; }
+  .field-row .checkbox, .field-row button { margin-bottom: 9px; }
+  .panel-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .panel-actions .add { background: var(--blurple-wash); color: var(--blurple-deep); }
+  .panel-actions .add:hover:not(:disabled) { background: #dfe2ff; }
+
+  .credit { margin: 30px 0 0; padding-top: 16px; border-top: 1px solid var(--line); font-size: 13px; color: var(--text-muted); }
+
+  /* Channel: preview, exports and the composer */
+  .channel { background: var(--chat); display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  .channel-head { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--rail); flex-wrap: wrap; }
+  .channel-name { display: flex; align-items: center; gap: 6px; font-weight: 700; color: var(--ink); min-width: 0; flex: 1; }
+  .channel-name svg { width: 22px; height: 22px; color: var(--text-muted); flex: none; }
+  .channel-name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tabs { display: flex; gap: 2px; background: var(--fog); padding: 3px; border-radius: 10px; }
+  .tabs button { background: transparent; padding: 5px 13px; font-size: 14px; color: var(--text-muted); border-radius: 7px; }
+  .tabs button:hover:not(:disabled) { background: var(--rail); }
+  .tabs button[aria-selected="true"] { background: var(--chat); color: var(--ink); box-shadow: 0 1px 2px rgba(6, 6, 7, 0.14); }
+
+  .chat { flex: 1; min-height: 0; overflow-y: auto; padding: 24px 0 8px; display: flex; flex-direction: column; }
+  .chat-start { padding: 0 16px 18px; margin-top: auto; }
+  .chat-start .hash { width: 68px; height: 68px; border-radius: 50%; background: var(--fog); display: grid; place-items: center; margin-bottom: 10px; position: relative; }
+  .chat-start .hash svg { width: 42px; height: 42px; color: var(--ink); }
+  .chat-start .hash::after { content: "test"; position: absolute; right: -20px; top: -2px; background: var(--sticker); color: var(--ink); font: 800 11px/1 var(--font-display); padding: 5px 8px; border-radius: 6px; transform: rotate(9deg); }
+  .chat-start h2 { margin: 0 0 4px; font: 800 24px/1.15 var(--font-display); letter-spacing: -0.02em; color: var(--ink); }
+  .chat-start p { margin: 0; color: var(--text-muted); max-width: 58ch; }
+
+  .day-divider { display: flex; align-items: center; gap: 8px; margin: 14px 16px 6px; font-size: 12px; font-weight: 700; color: var(--text-muted); }
+  .day-divider::before, .day-divider::after { content: ""; flex: 1; height: 1px; background: var(--rail); }
+  .day-divider.draft { color: var(--blurple-deep); }
+  .day-divider.draft::before, .day-divider.draft::after { background: #c9cdfb; }
+
+  .message { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 0 16px; padding: 6px 16px; font-size: 16px; line-height: 1.375; }
+  .message:hover { background: #f7f7f9; }
+  .message.draft { background: var(--blurple-wash); box-shadow: inset 3px 0 0 var(--blurple); }
+  .message.landed { animation: land 0.34s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
+  @keyframes land { from { opacity: 0; transform: translateY(22px); } }
+  .message a { color: #006ce7; text-decoration: none; }
+  .message a:hover { text-decoration: underline; }
+  .message code { background: var(--fog); border: 1px solid var(--rail); border-radius: 4px; padding: 0 4px; font-family: var(--font-code); font-size: 0.85em; }
+  .message .avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--blurple); object-fit: cover; display: grid; place-items: center; color: #fff; font-weight: 700; overflow: hidden; margin-top: 2px; }
+  .message-head { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+  .author-name { color: var(--ink); font-weight: 600; }
+  .app-tag { background: var(--blurple); color: #fff; font-size: 11px; font-weight: 700; border-radius: 4px; padding: 0 5px; line-height: 16px; align-self: center; }
+  .message-time { color: var(--text-muted); font-size: 12px; }
+  .message .content { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .empty-message { color: var(--text-muted); font-style: italic; }
+
+  .discord-embed { margin-top: 6px; max-width: 520px; background: var(--fog); border: 1px solid var(--rail); border-left: 4px solid var(--rail); border-radius: 4px; padding: 6px 16px 14px 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 16px; font-size: 14px; }
+  .discord-embed > * { grid-column: 1; margin-top: 8px; overflow-wrap: anywhere; }
+  .discord-embed .embed-thumbnail { grid-column: 2; grid-row: 1 / span 4; width: 80px; height: 80px; object-fit: cover; border-radius: 4px; }
+  .discord-embed .embed-author, .discord-embed .embed-footer { display: flex; align-items: center; gap: 8px; }
+  .discord-embed .embed-author { color: var(--ink); font-weight: 600; }
+  .discord-embed .embed-author a, .discord-embed .embed-author { color: var(--ink); }
+  .discord-embed .embed-author img { width: 24px; height: 24px; border-radius: 50%; }
+  .discord-embed .embed-title { color: var(--ink); font-weight: 700; font-size: 16px; }
+  .discord-embed .embed-description { white-space: pre-wrap; }
+  .discord-embed .embed-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .discord-embed .embed-field { grid-column: 1 / -1; white-space: pre-wrap; }
+  .discord-embed .embed-field.inline { grid-column: auto; }
+  .discord-embed .embed-field-name { color: var(--ink); font-weight: 700; }
+  .discord-embed .embed-image { grid-column: 1 / -1; max-width: 100%; max-height: 300px; border-radius: 4px; margin-top: 12px; }
+  .discord-embed .embed-footer { color: var(--text-muted); font-size: 12px; font-weight: 500; grid-column: 1 / -1; }
+  .discord-embed .embed-footer img { width: 20px; height: 20px; border-radius: 50%; }
+
+  .delivery { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; padding: 2px 16px 8px 72px; font-size: 13px; color: var(--text-muted); }
+  .delivery .pill { border-radius: 999px; padding: 1px 9px; font-weight: 700; font-variant-numeric: tabular-nums; background: var(--fog); color: var(--text); }
+  .delivery .pill.ok { background: #e2f6ea; color: var(--online-text); }
+  .delivery.failed { display: block; margin: 4px 16px 8px 72px; padding: 10px 14px; border-radius: 8px; background: var(--danger-wash); color: var(--text); }
+  .delivery.failed strong { display: block; color: var(--danger); }
+  .delivery.failed ul { margin: 6px 0 0; padding-left: 18px; font-family: var(--font-code); font-size: 12.5px; }
+  .delivery.failed p { margin: 6px 0 0; }
+
+  .code-box { flex: 1; min-height: 0; position: relative; padding: 16px; display: flex; }
+  .code-box button { position: absolute; top: 26px; right: 30px; background: var(--chat); border: 1px solid var(--line); }
+  pre { flex: 1; margin: 0; padding: 16px; background: var(--fog); border-radius: 10px; font-family: var(--font-code); font-size: 13px; line-height: 1.55; white-space: pre-wrap; word-break: break-word; overflow: auto; }
+
+  .composer { margin: 0 16px 20px; padding: 8px 8px 8px 16px; border-radius: 12px; background: var(--fog); display: flex; align-items: center; gap: 12px; }
+  .composer-text { flex: 1; min-width: 0; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .composer-text strong { color: var(--ink); }
+  .send-button { display: flex; align-items: center; gap: 8px; background: var(--blurple); color: #fff; padding: 10px 18px; border-radius: 9px; font-size: 15px; }
+  .send-button:hover:not(:disabled) { background: var(--blurple-deep); }
+  .send-button svg { width: 18px; height: 18px; }
+
+  @media (max-width: 920px) {
+    html, body { height: auto; }
+    .app { height: auto; grid-template-columns: minmax(0, 1fr); }
+    .rail { flex-direction: row; justify-content: flex-start; padding: 8px 12px; }
+    .rail-item { width: 40px; height: 40px; }
+    .rail-item::before, .rail-item::after, .rail-divider { display: none; }
+    .builder { border-radius: 12px 12px 0 0; overflow: visible; }
+    .chat { max-height: 70vh; }
+  }
+  @media (max-width: 480px) {
+    .form-grid { grid-template-columns: 1fr; }
+    .field-row { grid-template-columns: 1fr 1fr; }
+    .delivery, .delivery.failed { padding-left: 16px; margin-left: 0; }
+    .composer-text { display: none; }
+    .send-button { flex: 1; justify-content: center; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <nav class="rail" aria-label="Webhooker">
+    <a class="rail-item home" href="https://webhooker.eu/" target="_blank" rel="noopener" data-tooltip="Webhooker: never lose a webhook" aria-label="Webhooker website">
+      <svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M4 16h4.6L12.2 8l7.6 16 3.6-8H28" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+    <span class="rail-divider"></span>
+    <a class="rail-item" href="https://github.com/webhooker-eu/webhook-tester" target="_blank" rel="noopener" data-tooltip="webhook-tester: inspect incoming webhooks" aria-label="webhook-tester, another Webhooker tool">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 13h4l2 3h4l2-3h4M6 5h12l2 8v6H4v-6l2-8z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+    <a class="rail-item more" href="https://github.com/webhooker-eu" target="_blank" rel="noopener" data-tooltip="More free tools by Webhooker" aria-label="More free tools by Webhooker">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+    </a>
+    <span class="rail-spacer"></span>
+    <a class="rail-item" href="https://github.com/webhooker-eu/discord-webhook-tester" target="_blank" rel="noopener" data-tooltip="Source code on GitHub" aria-label="Source code on GitHub">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.1.39-1.99 1.03-2.69-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02a9.6 9.6 0 0 1 5 0c1.91-1.3 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.69 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0 0 12 2z"/></svg>
+    </a>
+  </nav>
+
+  <form class="builder" id="builder-form" autocomplete="off" novalidate>
+    <header class="builder-head">
+      <h1>Test a Discord webhook</h1>
+      <p>Build the message, see it the way Discord will show it, then send it for real.</p>
+    </header>
+
+    <section>
+      <h2>Webhook URL</h2>
+      <span class="url-row">
+        <input id="webhook-url" type="password" aria-label="Webhook URL" placeholder="https://discord.com/api/webhooks/…" spellcheck="false" autocomplete="off">
+        <button id="toggle-url-button" type="button" aria-pressed="false">Show</button>
+        <button id="check-webhook-button" type="button">Check</button>
+      </span>
+      <div class="note" id="webhook-status" role="status">In Discord: Server Settings, Integrations, Webhooks, Copy Webhook URL. It stays on this machine.</div>
+      <label class="checkbox">
+        <input id="remember-url" type="checkbox"> Remember the URL in this browser
+      </label>
+    </section>
+
+    <section>
+      <h2>Message</h2>
+      <div class="form-grid" id="message-controls"></div>
+    </section>
+
+    <section>
+      <h2>Embeds <span class="counter" id="embed-total-counter"></span></h2>
+      <div id="embed-list"></div>
+      <div class="panel-actions">
+        <button id="add-embed-button" class="add" type="button">Add embed</button>
+        <button id="reset-button" type="button" class="quiet-danger">Reset form</button>
+      </div>
+    </section>
+
+    <p class="credit">
+      A free tool by <a href="https://webhooker.eu/" target="_blank" rel="noopener">Webhooker</a>, the EU-hosted gateway
+      that receives, verifies, stores and replays your webhooks.
+      <a href="https://github.com/webhooker-eu/discord-webhook-tester" target="_blank" rel="noopener">Source on GitHub</a>.
+    </p>
+  </form>
+
+  <section class="channel" aria-label="Message preview">
+    <header class="channel-head">
+      <div class="channel-name">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9.5 4 8 20M16 4l-1.5 16M4.5 9h16M3.5 15h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <span id="channel-name">webhook-test</span>
+      </div>
+      <div class="tabs" role="tablist">
+        <button type="button" role="tab" data-tab="preview" aria-selected="true">Preview</button>
+        <button type="button" role="tab" data-tab="json" aria-selected="false">JSON</button>
+        <button type="button" role="tab" data-tab="curl" aria-selected="false">curl</button>
+        <button type="button" role="tab" data-tab="cli" aria-selected="false">CLI</button>
+      </div>
+    </header>
+
+    <div class="chat" id="tab-preview">
+      <div class="chat-start">
+        <div class="hash"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9.5 4 8 20M16 4l-1.5 16M4.5 9h16M3.5 15h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+        <h2>Welcome to #webhook-test</h2>
+        <p>Your draft shows up below, exactly as Discord will render it. Messages you send are kept here until you reload the page.</p>
+      </div>
+      <div id="chat-log" aria-live="polite"></div>
+      <div class="day-divider draft">Draft</div>
+      <div id="draft-slot"></div>
+    </div>
+    <div class="code-box" id="tab-code" hidden>
+      <button id="copy-code-button" type="button" class="small">Copy</button>
+      <pre id="code-output"></pre>
+    </div>
+
+    <div class="composer">
+      <span class="composer-text" id="composer-text">Paste a webhook URL to send this draft</span>
+      <button id="send-button" class="send-button" type="submit" form="builder-form">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3.4 20.4 21 12 3.4 3.6 3 10l12 2-12 2 .4 6.4z"/></svg>
+        Send message
+      </button>
+    </div>
+  </section>
+</div>
+
+<script>
+  const DRAFT_STORAGE_KEY = "discord-webhook-tester:draft";
+  const WEBHOOK_URL_STORAGE_KEY = "discord-webhook-tester:webhook-url";
+  const MAX_EMBEDS = 10;
+  const MAX_EMBED_FIELDS = 25;
+  const EMBEDS_TOTAL_MAX_LENGTH = 6000;
+  const DEFAULT_EMBED_COLOR = "#5865f2";
+  const SUPPRESS_NOTIFICATIONS_FLAG = 4096;
+
+  const elements = Object.fromEntries(
+    [...document.querySelectorAll("[id]")].map((element) => [element.id, element])
+  );
+
+  let activeTab = "preview";
+  let webhookName = "";
+  let draft = loadDraft();
+
+  function createEmptyEmbed() {
+    return {
+      title: "", description: "", url: "", color: DEFAULT_EMBED_COLOR, useColor: true, useTimestamp: false,
+      authorName: "", authorUrl: "", authorIconUrl: "", footerText: "", footerIconUrl: "",
+      imageUrl: "", thumbnailUrl: "", fields: [],
+    };
+  }
+
+  function createDefaultDraft() {
+    const exampleEmbed = createEmptyEmbed();
+    exampleEmbed.title = "Webhook is working";
+    exampleEmbed.description = "This test message was sent with **discord-webhook-tester**.";
+    exampleEmbed.color = "#57f287";
+    exampleEmbed.useTimestamp = true;
+    exampleEmbed.footerText = "discord-webhook-tester · webhooker.eu";
+    return { content: "", username: "", avatarUrl: "", threadId: "", threadName: "", silent: false, embeds: [exampleEmbed] };
+  }
+
+  function loadDraft() {
+    try {
+      const storedDraft = JSON.parse(localStorage.getItem(DRAFT_STORAGE_KEY));
+      if (storedDraft && Array.isArray(storedDraft.embeds)) {
+        storedDraft.embeds = storedDraft.embeds.map((embed) => ({ ...createEmptyEmbed(), ...embed }));
+        return { ...createDefaultDraft(), ...storedDraft };
+      }
+    } catch {}
+    return createDefaultDraft();
+  }
+
+  function saveDraft() {
+    try {
+      localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+    } catch {}
+  }
+
+  function createElement(tagName, properties = {}, children = []) {
+    const element = document.createElement(tagName);
+    Object.assign(element, properties);
+    element.append(...children);
+    return element;
+  }
+
+  function buildTextControl(target, key, { label, maxLength, multiline = false, type = "text", placeholder = "", wide = false }) {
+    const counter = createElement("span", { className: "counter" });
+    const input = createElement(multiline ? "textarea" : "input", { value: target[key], placeholder });
+    if (!multiline) input.type = type;
+
+    const updateCounter = () => {
+      if (!maxLength) return;
+      counter.textContent = `${input.value.length}/${maxLength}`;
+      counter.classList.toggle("over", input.value.length > maxLength);
+    };
+    input.addEventListener("input", () => {
+      target[key] = input.value;
+      updateCounter();
+      handleDraftChanged();
+    });
+    updateCounter();
+
+    const head = createElement("span", { className: "control-head" }, [createElement("span", { textContent: label }), counter]);
+    return createElement("label", { className: wide ? "control wide" : "control" }, [head, input]);
+  }
+
+  function buildCheckbox(target, key, label) {
+    const input = createElement("input", { type: "checkbox", checked: target[key] });
+    input.addEventListener("change", () => {
+      target[key] = input.checked;
+      handleDraftChanged();
+    });
+    return createElement("label", { className: "checkbox" }, [input, label]);
+  }
+
+  function renderMessageControls() {
+    elements["message-controls"].replaceChildren(
+      buildTextControl(draft, "content", { label: "Content", maxLength: 2000, multiline: true, wide: true, placeholder: "Message text. Markdown and @mentions work as usual." }),
+      buildTextControl(draft, "username", { label: "Username override", maxLength: 80, placeholder: "Webhook's own name" }),
+      buildTextControl(draft, "avatarUrl", { label: "Avatar URL override", type: "url", placeholder: "https://…" }),
+      buildTextControl(draft, "threadId", { label: "Thread ID", placeholder: "Post into an existing thread" }),
+      buildTextControl(draft, "threadName", { label: "Thread name", maxLength: 100, placeholder: "New post in a forum channel" }),
+      buildCheckbox(draft, "silent", "Silent message (no notifications)"),
+    );
+  }
+
+  function buildColorControl(embed) {
+    const colorInput = createElement("input", { type: "color", value: embed.color, ariaLabel: "Embed color" });
+    colorInput.addEventListener("input", () => {
+      embed.color = colorInput.value;
+      handleDraftChanged();
+    });
+    const row = createElement("span", { className: "color-row" }, [colorInput, buildCheckbox(embed, "useColor", "Use color")]);
+    return createElement("div", { className: "control" }, [createElement("span", { textContent: "Color" }), row]);
+  }
+
+  function buildFieldRow(embed, field) {
+    const removeButton = createElement("button", { type: "button", className: "small quiet-danger", textContent: "Remove" });
+    removeButton.addEventListener("click", () => {
+      embed.fields.splice(embed.fields.indexOf(field), 1);
+      handleDraftStructureChanged();
+    });
+    return createElement("div", { className: "field-row" }, [
+      buildTextControl(field, "name", { label: "Name", maxLength: 256 }),
+      buildTextControl(field, "value", { label: "Value", maxLength: 1024 }),
+      buildCheckbox(field, "inline", "Inline"),
+      removeButton,
+    ]);
+  }
+
+  function describeEmbed(embed, embedIndex) {
+    return embed.title || `Embed ${embedIndex + 1}`;
+  }
+
+  function buildEmbedCard(embed, embedIndex) {
+    const removeButton = createElement("button", { type: "button", className: "small quiet-danger", textContent: "Remove" });
+    removeButton.addEventListener("click", (event) => {
+      event.preventDefault();
+      draft.embeds.splice(embedIndex, 1);
+      handleDraftStructureChanged();
+    });
+    const summaryTitle = createElement("span", { className: "summary-title", textContent: describeEmbed(embed, embedIndex) });
+
+    const addFieldButton = createElement("button", { type: "button", className: "small", textContent: "Add field", disabled: embed.fields.length >= MAX_EMBED_FIELDS });
+    addFieldButton.addEventListener("click", () => {
+      embed.fields.push({ name: "", value: "", inline: false });
+      handleDraftStructureChanged();
+    });
+
+    const body = createElement("div", { className: "embed-body" }, [
+      createElement("div", { className: "form-grid" }, [
+        buildTextControl(embed, "title", { label: "Title", maxLength: 256, wide: true }),
+        buildTextControl(embed, "description", { label: "Description", maxLength: 4096, multiline: true, wide: true }),
+        buildTextControl(embed, "url", { label: "Title URL", type: "url", placeholder: "https://…" }),
+        buildColorControl(embed),
+      ]),
+      createElement("h3", { textContent: "Author" }),
+      createElement("div", { className: "form-grid" }, [
+        buildTextControl(embed, "authorName", { label: "Name", maxLength: 256, wide: true }),
+        buildTextControl(embed, "authorUrl", { label: "URL", type: "url", placeholder: "https://…" }),
+        buildTextControl(embed, "authorIconUrl", { label: "Icon URL", type: "url", placeholder: "https://…" }),
+      ]),
+      createElement("h3", { textContent: "Images" }),
+      createElement("div", { className: "form-grid" }, [
+        buildTextControl(embed, "imageUrl", { label: "Image URL", type: "url", placeholder: "https://…" }),
+        buildTextControl(embed, "thumbnailUrl", { label: "Thumbnail URL", type: "url", placeholder: "https://…" }),
+      ]),
+      createElement("h3", { textContent: `Fields (${embed.fields.length}/${MAX_EMBED_FIELDS})` }),
+      ...embed.fields.map((field) => buildFieldRow(embed, field)),
+      addFieldButton,
+      createElement("h3", { textContent: "Footer" }),
+      createElement("div", { className: "form-grid" }, [
+        buildTextControl(embed, "footerText", { label: "Text", maxLength: 2048, wide: true }),
+        buildTextControl(embed, "footerIconUrl", { label: "Icon URL", type: "url", placeholder: "https://…" }),
+        buildCheckbox(embed, "useTimestamp", "Add the current time as timestamp"),
+      ]),
+    ]);
+
+    const card = createElement("details", { className: "embed-card", open: embed.isOpen !== false }, [
+      createElement("summary", {}, [summaryTitle, removeButton]),
+      body,
+    ]);
+    card.style.setProperty("--embed-color", embed.useColor ? embed.color : "");
+    card.addEventListener("toggle", () => {
+      embed.isOpen = card.open;
+      saveDraft();
+    });
+    return card;
+  }
+
+  function renderEmbedList() {
+    elements["embed-list"].replaceChildren(...draft.embeds.map(buildEmbedCard));
+    elements["add-embed-button"].disabled = draft.embeds.length >= MAX_EMBEDS;
+  }
+
+  function buildEmbedPayload(embed, timestamp) {
+    const embedPayload = {};
+    if (embed.title) embedPayload.title = embed.title;
+    if (embed.description) embedPayload.description = embed.description;
+    if (embed.url) embedPayload.url = embed.url;
+    if (embed.authorName) {
+      embedPayload.author = { name: embed.authorName };
+      if (embed.authorUrl) embedPayload.author.url = embed.authorUrl;
+      if (embed.authorIconUrl) embedPayload.author.icon_url = embed.authorIconUrl;
+    }
+    const fields = embed.fields.filter((field) => field.name || field.value);
+    if (fields.length) embedPayload.fields = fields.map((field) => ({ name: field.name, value: field.value, inline: field.inline }));
+    if (embed.imageUrl) embedPayload.image = { url: embed.imageUrl };
+    if (embed.thumbnailUrl) embedPayload.thumbnail = { url: embed.thumbnailUrl };
+    if (embed.footerText) {
+      embedPayload.footer = { text: embed.footerText };
+      if (embed.footerIconUrl) embedPayload.footer.icon_url = embed.footerIconUrl;
+    }
+    if (Object.keys(embedPayload).filter((key) => key !== "url").length === 0) return null;
+    if (embed.useColor) embedPayload.color = parseInt(embed.color.slice(1), 16);
+    if (embed.useTimestamp) embedPayload.timestamp = timestamp;
+    return embedPayload;
+  }
+
+  function buildPayload() {
+    const payload = {};
+    if (draft.content) payload.content = draft.content;
+    if (draft.username) payload.username = draft.username;
+    if (draft.avatarUrl) payload.avatar_url = draft.avatarUrl;
+    if (draft.threadName) payload.thread_name = draft.threadName;
+    if (draft.silent) payload.flags = SUPPRESS_NOTIFICATIONS_FLAG;
+    const timestamp = new Date().toISOString();
+    const embeds = draft.embeds.map((embed) => buildEmbedPayload(embed, timestamp)).filter(Boolean);
+    if (embeds.length) payload.embeds = embeds;
+    return payload;
+  }
+
+  function countEmbedCharacters(payload) {
+    return (payload.embeds ?? []).reduce((total, embed) => {
+      const fieldCharacters = (embed.fields ?? []).reduce((sum, field) => sum + field.name.length + field.value.length, 0);
+      return total + (embed.title ?? "").length + (embed.description ?? "").length
+        + (embed.author?.name ?? "").length + (embed.footer?.text ?? "").length + fieldCharacters;
+    }, 0);
+  }
+
+  function escapeHtml(text) {
+    return text.replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character]));
+  }
+
+  function isHttpUrl(url) {
+    return /^https?:\/\//i.test(url);
+  }
+
+  // Input is escaped first, so the only tags in the result are the ones added here.
+  function renderMarkdown(text, { allowMaskedLinks = false } = {}) {
+    let html = escapeHtml(text);
+    html = html.replace(/`([^`\n]+)`/g, "<code>$1</code>");
+    html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+    html = html.replace(/__([^_]+)__/g, "<u>$1</u>");
+    html = html.replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>");
+    html = html.replace(/~~([^~]+)~~/g, "<s>$1</s>");
+    if (allowMaskedLinks) {
+      html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    }
+    return html;
+  }
+
+  function buildLinkedText(className, text, url) {
+    if (url && isHttpUrl(url)) {
+      const link = createElement("a", { href: url, target: "_blank", rel: "noopener noreferrer", textContent: text });
+      return createElement("div", { className }, [link]);
+    }
+    return createElement("div", { className, textContent: text });
+  }
+
+  function buildPreviewImage(className, url) {
+    if (!url || !isHttpUrl(url)) return null;
+    const image = createElement("img", { className, src: url, alt: "", referrerPolicy: "no-referrer" });
+    image.addEventListener("error", () => image.remove());
+    return image;
+  }
+
+  function buildEmbedPreview(embedPayload) {
+    const embedElement = createElement("div", { className: "discord-embed" });
+    if (embedPayload.color !== undefined) {
+      embedElement.style.borderLeftColor = `#${embedPayload.color.toString(16).padStart(6, "0")}`;
+    }
+    const parts = [buildPreviewImage("embed-thumbnail", embedPayload.thumbnail?.url)];
+    if (embedPayload.author) {
+      const author = buildLinkedText("embed-author", embedPayload.author.name, embedPayload.author.url);
+      const authorIcon = buildPreviewImage("", embedPayload.author.icon_url);
+      if (authorIcon) author.prepend(authorIcon);
+      parts.push(author);
+    }
+    if (embedPayload.title) parts.push(buildLinkedText("embed-title", embedPayload.title, embedPayload.url));
+    if (embedPayload.description) {
+      parts.push(createElement("div", { className: "embed-description", innerHTML: renderMarkdown(embedPayload.description, { allowMaskedLinks: true }) }));
+    }
+    if (embedPayload.fields) {
+      parts.push(createElement("div", { className: "embed-fields" }, embedPayload.fields.map((field) =>
+        createElement("div", { className: field.inline ? "embed-field inline" : "embed-field" }, [
+          createElement("div", { className: "embed-field-name", innerHTML: renderMarkdown(field.name) }),
+          createElement("div", { innerHTML: renderMarkdown(field.value, { allowMaskedLinks: true }) }),
+        ])
+      )));
+    }
+    parts.push(buildPreviewImage("embed-image", embedPayload.image?.url));
+    if (embedPayload.footer || embedPayload.timestamp) {
+      const footerText = [embedPayload.footer?.text, embedPayload.timestamp && new Date(embedPayload.timestamp).toLocaleString()].filter(Boolean).join(" • ");
+      const footer = createElement("div", { className: "embed-footer" }, [createElement("span", { textContent: footerText })]);
+      const footerIcon = buildPreviewImage("", embedPayload.footer?.icon_url);
+      if (footerIcon) footer.prepend(footerIcon);
+      parts.push(footer);
+    }
+    embedElement.append(...parts.filter(Boolean));
+    return embedElement;
+  }
+
+  function buildMessageElement(payload, className) {
+    const displayName = payload.username || webhookName || "Webhook";
+    const avatar = createElement("div", { className: "avatar", textContent: displayName.slice(0, 1).toUpperCase() });
+    if (payload.avatar_url && isHttpUrl(payload.avatar_url)) {
+      const avatarImage = createElement("img", { className: "avatar", alt: "", referrerPolicy: "no-referrer" });
+      avatarImage.addEventListener("load", () => avatar.replaceChildren(avatarImage));
+      avatarImage.src = payload.avatar_url;
+    }
+
+    const messageHead = createElement("div", { className: "message-head" }, [
+      createElement("span", { className: "author-name", textContent: displayName }),
+      createElement("span", { className: "app-tag", textContent: "APP" }),
+      createElement("span", { className: "message-time", textContent: `Today at ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` }),
+    ]);
+    const messageBody = createElement("div", {}, [messageHead]);
+    if (payload.content) {
+      messageBody.append(createElement("div", { className: "content", innerHTML: renderMarkdown(payload.content) }));
+    }
+    messageBody.append(...(payload.embeds ?? []).map(buildEmbedPreview));
+    if (!payload.content && !payload.embeds) {
+      messageBody.append(createElement("div", { className: "empty-message", textContent: "Nothing to send yet. Write some content or fill in an embed." }));
+    }
+    return createElement("div", { className }, [avatar, messageBody]);
+  }
+
+  function renderDraft(payload) {
+    elements["draft-slot"].replaceChildren(buildMessageElement(payload, "message draft"));
+  }
+
+  function scrollChatToEnd() {
+    elements["tab-preview"].scrollTop = elements["tab-preview"].scrollHeight;
+  }
+
+  function quoteForShell(text) {
+    return `'${text.replaceAll("'", `'\\''`)}'`;
+  }
+
+  function buildCurlCommand(payload) {
+    const threadId = draft.threadId.trim();
+    const threadQuery = /^\d+$/.test(threadId) ? `?thread_id=${threadId}` : "";
+    return [
+      `curl -X POST "$DISCORD_WEBHOOK_URL${threadQuery}" \\`,
+      "  -H 'Content-Type: application/json' \\",
+      `  -d ${quoteForShell(JSON.stringify(payload, null, 2))}`,
+    ].join("\n");
+  }
+
+  function buildCliCommand(payload) {
+    const embeds = payload.embeds ?? [];
+    if (embeds.length > 1) {
+      return `discord-webhook-tester send --payload-file - <<'JSON'\n${JSON.stringify(payload, null, 2)}\nJSON`;
+    }
+    const options = [];
+    const addOption = (flag, value) => { if (value) options.push(`${flag} ${quoteForShell(String(value))}`); };
+    addOption("--content", payload.content);
+    addOption("--username", payload.username);
+    addOption("--avatar-url", payload.avatar_url);
+    addOption("--thread-id", draft.threadId);
+    addOption("--thread-name", payload.thread_name);
+    if (payload.flags) options.push("--silent");
+    const [embed] = embeds;
+    if (embed) {
+      addOption("--title", embed.title);
+      addOption("--description", embed.description);
+      addOption("--url", embed.url);
+      if (embed.color !== undefined) addOption("--color", `#${embed.color.toString(16).padStart(6, "0")}`);
+      addOption("--author", embed.author?.name);
+      addOption("--author-url", embed.author?.url);
+      addOption("--author-icon", embed.author?.icon_url);
+      addOption("--image", embed.image?.url);
+      addOption("--thumbnail", embed.thumbnail?.url);
+      (embed.fields ?? []).forEach((field) => addOption("--field", `${field.name}|${field.value}${field.inline ? "|inline" : ""}`));
+      addOption("--footer", embed.footer?.text);
+      addOption("--footer-icon", embed.footer?.icon_url);
+      if (embed.timestamp) options.push("--timestamp now");
+    }
+    return ["discord-webhook-tester send", ...options].join(" \\\n  ");
+  }
+
+  function renderOutput() {
+    const payload = buildPayload();
+    const embedCharacters = countEmbedCharacters(payload);
+    const totalCounter = elements["embed-total-counter"];
+    totalCounter.textContent = `${embedCharacters}/${EMBEDS_TOTAL_MAX_LENGTH}`;
+    totalCounter.classList.toggle("over", embedCharacters > EMBEDS_TOTAL_MAX_LENGTH);
+
+    elements["tab-preview"].hidden = activeTab !== "preview";
+    elements["tab-code"].hidden = activeTab === "preview";
+    if (activeTab === "preview") renderDraft(payload);
+    if (activeTab === "json") elements["code-output"].textContent = JSON.stringify(payload, null, 2);
+    if (activeTab === "curl") elements["code-output"].textContent = buildCurlCommand(payload);
+    if (activeTab === "cli") elements["code-output"].textContent = buildCliCommand(payload);
+  }
+
+  function handleDraftChanged() {
+    saveDraft();
+    elements["embed-list"].querySelectorAll(".summary-title").forEach((summaryTitle, embedIndex) => {
+      const embed = draft.embeds[embedIndex];
+      summaryTitle.textContent = describeEmbed(embed, embedIndex);
+      summaryTitle.closest(".embed-card").style.setProperty("--embed-color", embed.useColor ? embed.color : "");
+    });
+    renderOutput();
+  }
+
+  function handleDraftStructureChanged() {
+    renderEmbedList();
+    handleDraftChanged();
+  }
+
+  function setNote(element, text, tone = "") {
+    element.textContent = text;
+    element.className = `note ${tone}`.trim();
+  }
+
+  async function postJson(path, body) {
+    const response = await fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const result = await response.json();
+    if (response.status === 422 && Array.isArray(result.detail)) {
+      const invalidInputs = result.detail.map((issue) => `${issue.loc.slice(1).join(".")}: ${issue.msg}`);
+      return { ok: false, status_code: null, error: "the form has invalid values", error_details: invalidInputs };
+    }
+    if (result.ok === undefined) throw new Error(`HTTP ${response.status}`);
+    return result;
+  }
+
+  function appendDelivery(result, payload) {
+    const logEntries = [];
+    if (result.ok) {
+      logEntries.push(buildMessageElement(payload, "message landed"));
+      logEntries.push(createElement("div", { className: "delivery" }, [
+        createElement("span", { className: "pill ok", textContent: `Delivered, HTTP ${result.status_code}` }),
+        createElement("span", { className: "pill", textContent: `${result.elapsed_ms} ms` }),
+        createElement("span", { textContent: result.data?.id ? `Message ID ${result.data.id}` : "" }),
+      ]));
+    } else {
+      const statusText = result.status_code ? `Discord answered HTTP ${result.status_code}` : "Not sent";
+      const failure = createElement("div", { className: "delivery failed", role: "alert" }, [
+        createElement("strong", { textContent: `${statusText}: ${result.error}` }),
+      ]);
+      if (result.error_details?.length) {
+        failure.append(createElement("ul", {}, result.error_details.map((detail) => createElement("li", { textContent: detail }))));
+      }
+      if (result.hint) failure.append(createElement("p", { textContent: result.hint }));
+      logEntries.push(failure);
+    }
+    elements["chat-log"].append(...logEntries);
+    scrollChatToEnd();
+  }
+
+  function renderComposerText() {
+    const composerText = elements["composer-text"];
+    if (!elements["webhook-url"].value.trim()) {
+      composerText.textContent = "Paste a webhook URL to send this draft";
+    } else if (webhookName) {
+      composerText.replaceChildren("Send the draft as ", createElement("strong", { textContent: webhookName }));
+    } else {
+      composerText.textContent = "Send the draft to your webhook";
+    }
+  }
+
+  async function sendMessage(event) {
+    event.preventDefault();
+    const webhookUrl = elements["webhook-url"].value.trim();
+    if (!webhookUrl) {
+      setNote(elements["webhook-status"], "Paste a webhook URL first. In Discord: Server Settings, Integrations, Webhooks, Copy Webhook URL.", "bad");
+      elements["webhook-url"].focus();
+      return;
+    }
+    const payload = buildPayload();
+    elements["send-button"].disabled = true;
+    try {
+      appendDelivery(await postJson("/api/send", { webhook_url: webhookUrl, payload, thread_id: draft.threadId.trim() || null }), payload);
+    } catch (error) {
+      appendDelivery({ ok: false, error: `the local server did not respond (${error.message})`, error_details: [] }, payload);
+    } finally {
+      elements["send-button"].disabled = false;
+    }
+  }
+
+  async function checkWebhook() {
+    const webhookUrl = elements["webhook-url"].value.trim();
+    if (!webhookUrl) return;
+    elements["check-webhook-button"].disabled = true;
+    setNote(elements["webhook-status"], "Checking…");
+    try {
+      const result = await postJson("/api/info", { webhook_url: webhookUrl });
+      if (result.ok) {
+        webhookName = result.data.name ?? "";
+        setNote(elements["webhook-status"], `Webhook “${webhookName}” is valid. Channel ${result.data.channel_id}, server ${result.data.guild_id}.`, "good");
+        renderComposerText();
+        renderOutput();
+      } else {
+        setNote(elements["webhook-status"], [result.error, result.hint].filter(Boolean).join(" "), "bad");
+      }
+    } catch (error) {
+      setNote(elements["webhook-status"], `Could not reach the local server (${error.message})`, "bad");
+    } finally {
+      elements["check-webhook-button"].disabled = false;
+    }
+  }
+
+  function persistWebhookUrl() {
+    try {
+      if (elements["remember-url"].checked) {
+        localStorage.setItem(WEBHOOK_URL_STORAGE_KEY, elements["webhook-url"].value.trim());
+      } else {
+        localStorage.removeItem(WEBHOOK_URL_STORAGE_KEY);
+      }
+    } catch {}
+  }
+
+  function restoreWebhookUrl() {
+    try {
+      const storedUrl = localStorage.getItem(WEBHOOK_URL_STORAGE_KEY);
+      if (storedUrl) {
+        elements["webhook-url"].value = storedUrl;
+        elements["remember-url"].checked = true;
+      }
+    } catch {}
+  }
+
+  elements["builder-form"].addEventListener("submit", sendMessage);
+  elements["check-webhook-button"].addEventListener("click", checkWebhook);
+  elements["webhook-url"].addEventListener("input", () => {
+    webhookName = "";
+    persistWebhookUrl();
+    renderComposerText();
+  });
+  elements["remember-url"].addEventListener("change", persistWebhookUrl);
+  elements["toggle-url-button"].addEventListener("click", () => {
+    const isVisible = elements["webhook-url"].type === "text";
+    elements["webhook-url"].type = isVisible ? "password" : "text";
+    elements["toggle-url-button"].textContent = isVisible ? "Show" : "Hide";
+    elements["toggle-url-button"].setAttribute("aria-pressed", String(!isVisible));
+  });
+  elements["add-embed-button"].addEventListener("click", () => {
+    draft.embeds.push(createEmptyEmbed());
+    handleDraftStructureChanged();
+  });
+  elements["reset-button"].addEventListener("click", () => {
+    draft = createDefaultDraft();
+    renderMessageControls();
+    handleDraftStructureChanged();
+    elements["chat-log"].replaceChildren();
+  });
+  document.querySelectorAll("[data-tab]").forEach((tabButton) => {
+    tabButton.addEventListener("click", () => {
+      activeTab = tabButton.dataset.tab;
+      document.querySelectorAll("[data-tab]").forEach((button) => button.setAttribute("aria-selected", String(button === tabButton)));
+      renderOutput();
+    });
+  });
+  elements["copy-code-button"].addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(elements["code-output"].textContent);
+      elements["copy-code-button"].textContent = "Copied";
+    } catch {
+      // The Clipboard API needs a secure context; over plain HTTP select the text for a manual copy.
+      getSelection().selectAllChildren(elements["code-output"]);
+      elements["copy-code-button"].textContent = "Press Ctrl+C";
+    }
+    setTimeout(() => { elements["copy-code-button"].textContent = "Copy"; }, 1500);
+  });
+
+  restoreWebhookUrl();
+  renderComposerText();
+  renderMessageControls();
+  renderEmbedList();
+  renderOutput();
+</script>
+</body>
+</html>
