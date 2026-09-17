@@ -15,6 +15,8 @@
 
 <p align="center">
   <a href="https://webhooker.eu/"><img src="https://img.shields.io/badge/made%20by-Webhooker-0f766e" alt="Made by Webhooker" /></a>
+  <a href="https://github.com/webhooker-eu/discord-webhook-tester/actions/workflows/ci.yml"><img src="https://github.com/webhooker-eu/discord-webhook-tester/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://github.com/webhooker-eu/discord-webhook-tester/pkgs/container/discord-webhook-tester"><img src="https://github.com/webhooker-eu/discord-webhook-tester/actions/workflows/docker.yml/badge.svg" alt="Docker image" /></a>
   <img src="https://img.shields.io/badge/python-3.12%2B-3776AB?logo=python&logoColor=white" alt="Python" />
   <img src="https://img.shields.io/badge/backend-FastAPI-009688?logo=fastapi&logoColor=white" alt="FastAPI" />
   <img src="https://img.shields.io/badge/packaging-uv-DE5FE9?logo=uv&logoColor=white" alt="uv" />
@@ -70,6 +72,12 @@ uv tool install git+https://github.com/webhooker-eu/discord-webhook-tester
 pipx install git+https://github.com/webhooker-eu/discord-webhook-tester
 
 discord-webhook-tester send
+```
+
+Or with Docker, nothing else installed:
+
+```bash
+docker run --rm -e DISCORD_WEBHOOK_URL ghcr.io/webhooker-eu/discord-webhook-tester send
 ```
 
 To get a webhook URL in Discord: **Server Settings → Integrations → Webhooks → New Webhook → Copy
@@ -167,16 +175,24 @@ The form keeps your draft in the browser's local storage. The webhook URL is sto
 ### Docker
 
 ```bash
+docker run --rm -p 127.0.0.1:8080:8080 ghcr.io/webhooker-eu/discord-webhook-tester   # http://localhost:8080
+```
+
+The image is built for `linux/amd64` and `linux/arm64`, and works as the CLI too:
+
+```bash
+docker run --rm -e DISCORD_WEBHOOK_URL ghcr.io/webhooker-eu/discord-webhook-tester send --content 'Hello from Docker'
+```
+
+Prefer to build it yourself?
+
+```bash
 git clone https://github.com/webhooker-eu/discord-webhook-tester.git
 cd discord-webhook-tester
 docker compose up -d --build            # http://localhost:8080
 ```
 
-Set `PORT` in a `.env` file to publish a different host port. The same image works as the CLI:
-
-```bash
-docker run --rm -e DISCORD_WEBHOOK_URL discord-webhook-tester send --content 'Hello from Docker'
-```
+Set `PORT` in a `.env` file to publish a different host port.
 
 ### HTTP API
 
@@ -213,6 +229,7 @@ print(result.ok, result.status_code, result.error)
 │   ├── web.py             # FastAPI app behind the web form
 │   └── static/            # Single-file UI (vanilla JS, no build step) and bundled fonts
 ├── tests/                 # pytest suite, no network access needed
+├── .github/workflows/     # CI, GHCR image and PyPI publishing
 ├── Dockerfile             # python-slim + uv, runs as a non-root user
 ├── docker-compose.yml
 ├── pyproject.toml         # Dependencies, managed with uv
